@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Upload Modal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<style>
+  /* Modal styles */
+  .modal {
+    display: none; /* Ensure modals are hidden initially */
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    /* Centering the modal content */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 4px solid red;
+  }
+
+  .modal-content {
+    background-color: #fefefe;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+
+    /* Center content inside modal */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border: 4px solid yellow;
+
+  }
+
+  #fileModalPre{
+    width:10%;
+    text-align: center;;
+  }
+  /* Cleaning Row Loader Animation */
+  .cleaning-loader {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    background-color: #f3f3f3;
+    overflow: hidden;
+  }
+
+  .cleaning-loader::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 20px;
+    background-color: #3498db;
+    top: 0;
+    left: 0;
+    animation: clean 2s ease-in-out infinite;
+  }
+
+  /* Define the vertical up-and-down cleaning motion */
+  @keyframes clean {
+    0% {
+      top: 0;
+    }
+    50% {
+      top: 100%;
+    }
+    100% {
+      top: 0;
+    }
+  }
+</style>
+<body>
+
+  
+  <!-- Initial Form -->
+  <form id="imageForm">
+    <label for="fileInput">Upload Image:</label>
+    <input type="file" id="fileInput" style="display:none;">
+    <img id="imagePreview" src="" alt="No Image" style="max-width: 200px; height:100px; display: none;">
+    <button type="button" id="chooseFileBtn">Choose File</button>
+  </form>
+
+  <!-- Modal for Image Upload -->
+  <div id="uploadModal" class="modal" style="display: none";>
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Upload and Preview Image</h2>
+      <input type="file" id="fileUploadModalInput" accept="image/*">
+      <div id="fileModalPreview" style="max-width: 200px; height:100px;"></div>
+      <button id="continueBtn" style="display: none;">Continue to Remove Background</button>
+    </div>
+  </div>
+
+  <!-- Background Removal Loading Modal -->
+  <div id="loadingModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>Removing Background...</h2>
+      <div class="cleaning-loader"></div> <!-- Custom cleaning row animation -->
+      <p>Please wait while we remove the background.</p>
+    </div>
+  </div>
+
+  <script>
+    // Get elements for form and modals
+    const fileInputForm = document.getElementById("fileInput");
+    const chooseFileBtn = document.getElementById("chooseFileBtn");
+    const imagePreviewForm = document.getElementById("imagePreview");
+
+    const uploadModal = document.getElementById("uploadModal");
+    const fileUploadModalInput = document.getElementById("fileUploadModalInput");
+    const fileModalPreview = document.getElementById("fileModalPreview");
+    const continueBtn = document.getElementById("continueBtn");
+
+    const loadingModal = document.getElementById("loadingModal");
+
+    let selectedFile;
+
+    // Show the file selection modal when "Choose File" is clicked
+    chooseFileBtn.addEventListener("click", () => {
+      uploadModal.style.display = "flex";
+    });
+
+    // Handle file selection in the modal
+    fileUploadModalInput.addEventListener("change", () => {
+      const file = fileUploadModalInput.files[0];
+      selectedFile = file;
+      if (file) {
+        const objectURL = URL.createObjectURL(file);
+        fileModalPreview.innerHTML = `<img src="${objectURL}" alt="Image Preview" style="max-width: 100%;">`;
+       
+        // Release the object URL after the preview is loaded
+        fileModalPreview.querySelector("img").onload = () => {
+          URL.revokeObjectURL(objectURL);
+        };
+
+        // Show the "Continue" button
+        continueBtn.style.display = "block";
+        fileUploadModalInput.style.display ="none";
+      }
+    });
+
+    // Continue to background removal
+    continueBtn.addEventListener("click", () => {
+      if (selectedFile) {
+        // Close the upload modal, show loading modal
+        uploadModal.style.display = "none";
+        loadingModal.style.display = "flex";
+
+        // Simulate background removal API call
+        removeBackground(selectedFile);
+      }
+    });
+
+    // Simulate background removal using XMLHttpRequest (replace with actual API)
+    function removeBackground(file) {
+      const formData = new FormData();
+      formData.append('image_file', file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "https://api.remove.bg/v1.0/removebg", true); // Replace with actual API
+      xhr.setRequestHeader("X-Api-Key", "cGonrQoKPpMDYeANuwt6EYC3"); // Replace with your remove.bg API key
+
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          // Hide loading modal
+          loadingModal.style.display = "none";
+
+          // Get the processed image and display it back in the form
+          const blob = xhr.response;
+          const objectURL = URL.createObjectURL(blob);
+
+          imagePreviewForm.src = objectURL;
+          imagePreviewForm.style.display="block"
+          // Revoke object URL after the image is loaded
+          imagePreviewForm.onload = () => {
+            URL.revokeObjectURL(objectURL);
+          };
+        } else {
+          // Handle error
+          alert("Error removing background. Please try again.");
+          loadingModal.style.display = "none";
+        }
+      };
+
+      xhr.onerror = function() {
+        // Handle network error
+        alert("Network error. Please check your connection.");
+        loadingModal.style.display = "none";
+      };
+
+      // Response type should be 'blob' to handle binary data (image)
+      xhr.responseType = "blob";
+
+      // Send the request
+      xhr.send(formData);
+    }
+
+    // Close the upload modal when 'X' is clicked
+    document.querySelector(".close").addEventListener("click", () => {
+      uploadModal.style.display = "none";
+    });
+  </script>
+</body>
+</html>
